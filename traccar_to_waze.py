@@ -42,7 +42,6 @@ async def get_street_name(lat: float, lon: float) -> str:
 def should_send_alert(position: dict) -> bool:
     attrs = position.get('attributes', {})
     device_name = position.get('deviceName', '').upper()
-    
     if any(kw in device_name for kw in FILTER_KEYWORDS):
         return True
     if attrs.get('sondersignal') or attrs.get('emergency') or attrs.get('blue_light'):
@@ -51,16 +50,13 @@ def should_send_alert(position: dict) -> bool:
 
 def create_cifs_xml(positions):
     root = ET.Element("incidents")
-    
     for pos in positions:
         if not should_send_alert(pos):
             continue
-            
         lat = pos.get('latitude')
         lon = pos.get('longitude')
         if not lat or not lon:
             continue
-            
         device_name = pos.get('deviceName', 'Einsatzfahrzeug')
         speed = pos.get('speed', 0)
         
@@ -71,7 +67,6 @@ def create_cifs_xml(positions):
         ET.SubElement(incident, "type").text = "HAZARD"
         ET.SubElement(incident, "subtype").text = "HAZARD_ON_ROAD_EMERGENCY_VEHICLE"
         
-        # Polyline für Bewegungsrichtung
         polyline = f"{lat:.6f} {lon:.6f}"
         if speed > 8:
             offset = 0.00045
@@ -114,7 +109,7 @@ async def start_http_server():
     await runner.setup()
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
-    print(f"🌐 HTTP Server läuft auf Port {PORT} → http://localhost:{PORT}/feed.xml")
+    print(f"🌐 HTTP Server läuft auf Port {PORT}")
 
 async def main():
     if not USERNAME or not PASSWORD:
@@ -138,12 +133,7 @@ async def main():
     
     while True:
         try:
-            async with websockets.connect(
-                TRACCAR_WS_URL, 
-                ping_interval=20, 
-                ping_timeout=30,
-                close_timeout=5
-            ) as ws:
+            async with websockets.connect(TRACCAR_WS_URL, ping_interval=20, ping_timeout=30, close_timeout=5) as ws:
                 print("✅ WebSocket verbunden")
                 async for message in ws:
                     data = json.loads(message)
