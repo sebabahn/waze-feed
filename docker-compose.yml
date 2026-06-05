@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  traccar-waze-feed:
+    build: .
+    container_name: traccar-waze-feed
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    environment:
+      - TRACCAR_WS_URL=wss://${TRACCAR_SERVER}/api/socket
+      - TRACCAR_USERNAME=${TRACCAR_USERNAME}
+      - TRACCAR_PASSWORD=${TRACCAR_PASSWORD}
+      - FILTER_KEYWORDS=RTW,NEF,LF,HLF,POL,FEUER,RW,ELW
+      - GEOCODER_USER_AGENT=Waze-Einsatzfeed/1.0 (kontakt@feuerwehr.de)
+      - PORT=7777
+    volumes:
+      - waze_feed_data:/app
+
+volumes:
+  waze_feed_data:
