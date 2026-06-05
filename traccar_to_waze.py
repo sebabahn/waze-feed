@@ -3,6 +3,7 @@ import json
 import xml.etree.ElementTree as ET
 import aiohttp
 import websockets
+import base64
 from datetime import datetime
 import os
 from geopy.geocoders import Nominatim
@@ -41,6 +42,7 @@ async def get_street_name(lat: float, lon: float) -> str:
 def should_send_alert(position: dict) -> bool:
     attrs = position.get('attributes', {})
     device_name = position.get('deviceName', '').upper()
+    
     if any(kw in device_name for kw in FILTER_KEYWORDS):
         return True
     if attrs.get('sondersignal') or attrs.get('emergency') or attrs.get('blue_light'):
@@ -49,13 +51,16 @@ def should_send_alert(position: dict) -> bool:
 
 def create_cifs_xml(positions):
     root = ET.Element("incidents")
+    
     for pos in positions:
         if not should_send_alert(pos):
             continue
+            
         lat = pos.get('latitude')
         lon = pos.get('longitude')
         if not lat or not lon:
             continue
+            
         device_name = pos.get('deviceName', 'Einsatzfahrzeug')
         speed = pos.get('speed', 0)
         
@@ -66,6 +71,7 @@ def create_cifs_xml(positions):
         ET.SubElement(incident, "type").text = "HAZARD"
         ET.SubElement(incident, "subtype").text = "HAZARD_ON_ROAD_EMERGENCY_VEHICLE"
         
+        # Polyline für Bewegungsrichtung
         polyline = f"{lat:.6f} {lon:.6f}"
         if speed > 8:
             offset = 0.00045
@@ -118,17 +124,17 @@ async def main():
     print("🚨 Traccar WebSocket → Waze CIFS Docker Container gestartet")
     await start_http_server()
     
-    # Login mit moderner Methode (keine Deprecation)
+    # Login ohne DeprecationWarning
     async with aiohttp.ClientSession() as session:
         try:
-            auth_header = aiohttp.BasicAuth(USERNAME, PASSWORD).encode()
+            credentials = base64.b64encode(f"{USERNAME}:{PASSWORD}".encode('utf-8')).decode('utf-8')
             await session.post(
                 TRACCAR_WS_URL.replace('/api/socket', '/api/session'),
-                headers={"Authorization": auth_header}
+                headers={"Authorization": f"Basic {credentials}"}
             )
             print("✅ Traccar Login erfolgreich")
         except Exception as e:
-            print(f"Login Warnung (kann ignoriert werden): {e}")
+            print(f"Login Warnung: {e}")
     
     while True:
         try:
