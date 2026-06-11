@@ -1,0 +1,10 @@
+*.php.local
+config.php
+config-test.php
+.env
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

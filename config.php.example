@@ -1,0 +1,60 @@
+<?php
+/**
+ * Waze Feed Generator - Configuration Template
+ * 
+ * IMPORTANT: Copy this file to config.php and customize for your environment
+ * DO NOT commit config.php to version control (it's in .gitignore)
+ */
+
+// ============================================
+// Traccar Configuration
+// ============================================
+// Support environment variables for credentials
+$TRACCAR_URL = getenv('TRACCAR_URL') ?: 'http://localhost:8082';
+$USERNAME = getenv('TRACCAR_USERNAME') ?: 'admin@example.com';
+$PASSWORD = getenv('TRACCAR_PASSWORD') ?: 'admin';
+
+// ============================================
+// Emergency Vehicle Configuration
+// ============================================
+// Groups that contain emergency vehicles (case-insensitive match)
+$EMERGENCY_GROUPS = [
+    'FEUERWEHR',
+    'POLIZEI',
+    'RETTUNGSDIENST',
+    'THW'
+];
+
+// Keywords in device name that indicate emergency vehicles (case-insensitive match)
+$FILTER_KEYWORDS = [
+    'LF',
+    'TLF',
+    'GW',
+    'ELW',
+    'RTW',
+    'NEF',
+    'KTW'
+];
+
+// ============================================
+// Movement Detection Configuration
+// ============================================
+// Speed threshold in km/h - only show vehicles moving faster than this
+$SPEED_THRESHOLD_KMH = 5;
+
+// Minutes to look back in history for movement detection
+$HISTORY_LOOKBACK_MINUTES = 10;
+
+// ============================================
+// Cache Configuration
+// ============================================
+// Enable/disable output caching for performance
+$ENABLE_CACHE = true;
+
+// Cache duration in seconds (15 seconds recommended)
+$CACHE_DURATION_SECONDS = 15;
+
+// Cache file directory (must be writable)
+$CACHE_DIR = sys_get_temp_dir();
+
+?>
