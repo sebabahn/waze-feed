@@ -296,7 +296,8 @@ if (json_last_error() !== JSON_ERROR_NONE || !isset($authResult['id'])) {
 }
 
 // Geräte abrufen (mit Cookie)
-$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000';
+
+$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000&attributes=emstatus';
 $ch = curl_init();
 curl_setopt_array($ch, [
     CURLOPT_URL => $devicesEndpoint,
@@ -419,6 +420,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             <!-- Quelle der Straße: <?php echo htmlspecialchars($source); ?> -->
             <!-- Zeit seit Positionsübermittlung an Traccar: <?php echo $timeSinceFix; ?> Sekunden -->
             <!-- Cache-Alter: <?php echo ($cacheAge !== null) ? $cacheAge . ' Sekunden' : 'Neu (kein Cache)'; ?> -->
+            <!-- emstatus: <?php echo htmlspecialchars($emstatus ?? 'nicht gesetzt'); ?> -->
         <?php endif; ?>
 
         <incident id="<?php echo htmlspecialchars($deviceName); ?>">
