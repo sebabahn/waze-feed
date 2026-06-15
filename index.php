@@ -6,6 +6,7 @@
 
 // Sagen wir dem Browser/Client: "Bitte cache nicht länger als 10 Sekunden!"
 // dann hole die Daten neu.
+
 header('Cache-Control: private, max-age=10, pre-check=10');
 header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 10) . ' GMT');
 
