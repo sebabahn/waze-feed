@@ -10,15 +10,30 @@
 // Traccar Configuration
 // ============================================
 // Support environment variables for credentials
-$TRACCAR_URL = getenv('TRACCAR_URL') ?: 'http://localhost:8082';
-$USERNAME = getenv('TRACCAR_USERNAME') ?: 'admin@example.com';
-$PASSWORD = getenv('TRACCAR_PASSWORD') ?: 'admin';
+$config['TRACCAR_URL'] = getenv('TRACCAR_URL') ?: 'http://localhost:8082';
+$config['USERNAME'] = getenv('TRACCAR_USERNAME') ?: 'admin@example.com';
+$config['PASSWORD'] = getenv('TRACCAR_PASSWORD') ?: 'admin';
 
 // ============================================
-// Emergency Vehicle Configuration
+// Waze Reverse Geocoding (optional)
 // ============================================
-// Groups that contain emergency vehicles (case-insensitive match)
-$EMERGENCY_GROUPS = [
+// If you want street names from Waze instead of OSM, provide your Waze Partner Hub token
+// Leave empty to use OpenStreetMap Nominatim as fallback
+$config['WAZE_REVERSE_GEOCODE_TOKEN'] = getenv('WAZE_REVERSE_GEOCODE_TOKEN') ?: '';
+// ============================================
+// Feed Metadata
+// ============================================
+$config['FEED_TITLE'] = 'Waze Incident Feed';
+$config['FEED_LINK'] = ''; // e.g. 'https://example.com/waze-feed.php'
+$config['FEED_DESCRIPTION'] = 'Live emergency vehicle positions from Traccar';
+// ============================================
+// Device Filtering
+// ============================================
+// List of device IDs to completely ignore (not shown in feed)
+$config['IGNORED_DEVICES'] = [];
+
+// Groups that contain emergency vehicles (leave empty to allow all groups)
+$config['EMERGENCY_GROUPS'] = [
     'FEUERWEHR',
     'POLIZEI',
     'RETTUNGSDIENST',
@@ -35,22 +50,21 @@ $FILTER_KEYWORDS = [
     'NEF',
     'KTW'
 ];
-
 // ============================================
-// Custom Attribute Filter
+// Emergency Status Filter (emstatus attribute)
 // ============================================
 // Only include devices with specific emstatus values (e.g., 3 or 4)
 // Set to empty array to disable this filter
-$EMSTATUS_FILTER = [
+$config['EMSTATUS_FILTER'] = [
     3,
     4
 ];
 
 // ============================================
-// Movement Detection Configuration
+// Movement Detection
 // ============================================
-// Speed threshold in km/h - only show vehicles moving faster than this
-$SPEED_THRESHOLD_KMH = 5;
+// Minimum speed in km/h to include a device in the feed (0 = include all)
+$config['MIN_SPEED_KMH'] = 5;
 
 // Minutes to look back in history for movement detection
 $HISTORY_LOOKBACK_MINUTES = 10;
@@ -67,4 +81,16 @@ $CACHE_DURATION_SECONDS = 15;
 // Cache file directory (must be writable)
 $CACHE_DIR = sys_get_temp_dir();
 
+// ============================================
+// Debug Mode
+// ============================================
+// When true, additional debug info is logged and written as XML comments
+$config['DEBUG_MODE'] = false;
+
+// ============================================
+// Return configuration array
+// ============================================
+return $config;
+
 ?>
+
