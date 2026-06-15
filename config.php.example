@@ -37,6 +37,16 @@ $FILTER_KEYWORDS = [
 ];
 
 // ============================================
+// Custom Attribute Filter
+// ============================================
+// Only include devices with specific emstatus values (e.g., 3 or 4)
+// Set to empty array to disable this filter
+$EMSTATUS_FILTER = [
+    3,
+    4
+];
+
+// ============================================
 // Movement Detection Configuration
 // ============================================
 // Speed threshold in km/h - only show vehicles moving faster than this
