@@ -305,7 +305,7 @@ if (json_last_error() !== JSON_ERROR_NONE || !isset($authResult['id'])) {
 
 // Geräte abrufen (mit Cookie)
 
-$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000';
+$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000&attributes=deviceAttributes';
 $ch = curl_init();
 curl_setopt_array($ch, [
     CURLOPT_URL => $devicesEndpoint,
@@ -372,45 +372,37 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
     }
 
     // Geofence-IDs separat laden über Device-Attributes (wenn Filter aktiv ist)
+    // HINWEIS: Traccar speichert Device-Attribute im Device-Objekt selbst!
+    // Wir prüfen direkt im Device-Objekt nach deviceAttributes
     $geofenceCache = null;
+    $geofenceLoadingSuccess = false;
+
     if (!empty($config['GEOFENCE_IDS'])) {
-        logDebug("Lade Device-Attribute für Geofence-Filter...");
+        logDebug("Prüfe Device-Attributes für Geofence-Filter...");
         $geofenceCache = [];
 
-        // Device-Attribute für jedes Gerät laden
         foreach ($devices as $device) {
             $deviceId = $device['id'];
             $deviceName = $device['name'] ?? 'Unknown';
 
-            // Device-Attribute laden
-            $deviceAttributesEndpoint = $traccarUrl . '/api/attributes/device/' . $deviceId;
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL => $deviceAttributesEndpoint,
-                CURLOPT_HTTPHEADER => ['Accept: application/json'],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_COOKIEFILE => $cookieFile,
-                CURLOPT_COOKIEJAR => $cookieFile,
-            ]);
-
-            $attributesJson = curl_exec($ch);
-            curl_close($ch);
-
-            if ($attributesJson) {
-                $attributes = json_decode($attributesJson, true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($attributes)) {
-                    // Traccar gibt attributes als Liste von {key, value} zurück
-                    foreach ($attributes as $attr) {
-                        if (isset($attr['key']) && $attr['key'] === 'geofenceIds') {
-                            $geofenceCache[$deviceId] = $attr['value'] ?? '';
-                            logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . ($attr['value'] ?? 'empty') . "]");
-                            break;
-                        }
+            // Prüfe ob deviceAttributes im Device-Objekt vorhanden sind
+            if (isset($device['deviceAttributes']) && is_array($device['deviceAttributes'])) {
+                foreach ($device['deviceAttributes'] as $attr) {
+                    if (isset($attr['key']) && $attr['key'] === 'geofenceIds') {
+                        $geofenceCache[$deviceId] = $attr['value'] ?? '';
+                        $geofenceLoadingSuccess = true;
+                        logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . ($attr['value'] ?? 'empty') . "]");
+                        break;
                     }
                 }
             }
         }
-        logDebug("Geofence-IDs geladen für " . count($geofenceCache) . " Geräte.");
+
+        if ($geofenceLoadingSuccess) {
+            logDebug("Geofence-IDs erfolgreich geladen für " . count($geofenceCache) . " Geräte.");
+        } else {
+            logDebug("Keine geofenceIds in Device-Attributes gefunden.");
+        }
     }
 
 
@@ -485,36 +477,31 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         }
 
         // Geofence-Filter: Nur Geräte innerhalb der konfigurierten Geofences anzeigen (wenn Filter gesetzt ist)
-        // Traccar liefert geofenceIds über /api/positionAttributes - separat laden
+        // Traccar liefert geofenceIds über deviceAttributes im Device-Objekt
         if (!empty($config['GEOFENCE_IDS'])) {
             logDebug("GEOFENCE_IDS aktiviert: [" . implode(',', $config['GEOFENCE_IDS']) . "]");
 
-            // Nur filtern, wenn Geofence-Cache erfolgreich geladen wurde
-            if ($geofenceCache !== null) {
+            // Nur filtern, wenn Geofence-Filter erfolgreich geladen wurde
+            if ($geofenceLoadingSuccess) {
                 $geofenceMatch = false;
 
-                if (isset($latestPos['id'])) {
-                    $posId = $latestPos['id'];
-                    if (isset($geofenceCache[$posId])) {
-                        $geofenceIdsStr = $geofenceCache[$posId];
-                        if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
-                            $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
-                            logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . implode(',', $deviceGeofenceIds) . "]");
+                if (isset($geofenceCache[$deviceId])) {
+                    $geofenceIdsStr = $geofenceCache[$deviceId];
+                    if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
+                        $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
+                        logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . implode(',', $deviceGeofenceIds) . "]");
 
-                            // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
-                            $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
-                            if (!empty($matches)) {
-                                $geofenceMatch = true;
-                                logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
-                            } else {
-                                logDebug("Device {$deviceId} - Geofence-Filter: FAIL (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], device: [" . implode(',', $deviceGeofenceIds) . "])");
-                            }
+                        // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
+                        $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
+                        if (!empty($matches)) {
+                            $geofenceMatch = true;
+                            logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
                         } else {
-                            logDebug("Device {$deviceId} ({$deviceName}) - keine geofenceIds in Position gefunden.");
+                            logDebug("Device {$deviceId} - Geofence-Filter: FAIL (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], device: [" . implode(',', $deviceGeofenceIds) . "])");
                         }
-                    } else {
-                        logDebug("Device {$deviceId} ({$deviceName}) - Position-ID {$posId} nicht im Geofence-Cache.");
                     }
+                } else {
+                    logDebug("Device {$deviceId} ({$deviceName}) - keine geofenceIds im Device-Objekt gefunden.");
                 }
 
                 // Gerät überspringen, wenn es nicht im konfigurierten Geofence ist
@@ -523,7 +510,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
                     continue;
                 }
             } else {
-                logDebug("GEOFENCE_IDS gesetzt, aber Geofence-Cache konnte nicht geladen werden - Filter wird ignoriert.");
+                logDebug("GEOFENCE_IDS gesetzt, aber keine geofenceIds in Device-Objekten gefunden - Filter wird ignoriert.");
             }
         }
 
