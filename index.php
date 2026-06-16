@@ -40,6 +40,7 @@ $config = array_merge([
     'FEED_DESCRIPTION' => '',
     'IGNORED_DEVICES' => [],
     'EMERGENCY_GROUPS' => [], // Leeres Array bedeutet: alle Gruppen erlaubt
+    'EMSTATUS_FILTER' => [], // Leeres Array bedeutet: alle emstatus erlaubt
     'MIN_SPEED_KMH' => 0,
     'DEBUG_MODE' => false,
 ], $config);
@@ -425,6 +426,14 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
                         break;
                     }
                 }
+            }
+        }
+
+        // Filter: Nur Geräte mit passendem emstatus anzeigen (wenn Filter gesetzt ist)
+        if (!empty($config['EMSTATUS_FILTER']) && $emstatus !== null) {
+            if (!in_array((int)$emstatus, $config['EMSTATUS_FILTER'])) {
+                logDebug("Device {$deviceId} (emstatus: {$emstatus}) nicht im EMSTATUS_FILTER. Übersprungen.");
+                continue;
             }
         }
 
