@@ -1,16 +1,13 @@
 <?php
 
 /**
- * waze-feed.php - Generiert einen XML-Feed im CIFS-Format für Waze
+ * waze-feed.php - Generiert einen XML-Feed im CIFS-Format fuer Waze
  */
-
-// Sagen wir dem Browser/Client: "Bitte cache nicht länger als 10 Sekunden!"
-// dann hole die Daten neu.
 
 header('Cache-Control: private, max-age=10, pre-check=10');
 header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 10) . ' GMT');
 
-// Config laden mit Error-Handling
+// Config laden
 $configFile = __DIR__ . '/config.php';
 if (!file_exists($configFile)) {
     $configFile = 'config.php';
@@ -23,13 +20,11 @@ if (!file_exists($configFile)) {
 
 $config = require $configFile;
 
-// Sicherstellen, dass $config ein Array ist (falls Config-Datei ungültigen Inhalt hat)
 if (!is_array($config)) {
     http_response_code(500);
-    die('Fehler: Config-Datei muss ein Array zurückgeben.');
+    die('Fehler: Config-Datei muss ein Array zurueckgeben.');
 }
 
-// Default-Werte sicherstellen
 $config = array_merge([
     'TRACCAR_URL' => '',
     'USERNAME' => '',
@@ -39,9 +34,9 @@ $config = array_merge([
     'FEED_LINK' => '',
     'FEED_DESCRIPTION' => '',
     'IGNORED_DEVICES' => [],
-    'EMERGENCY_GROUPS' => [], // Leeres Array bedeutet: alle Gruppen erlaubt
-    'EMSTATUS_FILTER' => [], // Leeres Array bedeutet: alle emstatus erlaubt
-    'GEOFENCE_IDS' => [], // Leeres Array bedeutet: kein Geofence-Filter (IDs aus Traccar)
+    'EMERGENCY_GROUPS' => [],
+    'EMSTATUS_FILTER' => [],
+    'GEOFENCE_IDS' => [],
     'MIN_SPEED_KMH' => 0,
     'DEBUG_MODE' => false,
 ], $config);
@@ -57,9 +52,6 @@ function logDebug($message)
     }
 }
 
-/**
- * File-Cache mit JSON (dynamische TTL basierend auf Quelle)
- */
 function getCachedData($key, &$cacheAge = null)
 {
     global $config;
@@ -72,11 +64,7 @@ function getCachedData($key, &$cacheAge = null)
         return null;
     }
 
-    // Cache TTL basierend auf Quelle (hier vereinfacht auf 5 Min Standard)
-    // In der Praxis könnte man die TTL aus dem Dateinamen oder Metadaten extrahieren
     $age = time() - filemtime($file);
-
-    // Standard-TTL: 300 Sekunden (5 Minuten)
     if ($age > 300) {
         @unlink($file);
         $cacheAge = null;
@@ -84,10 +72,7 @@ function getCachedData($key, &$cacheAge = null)
     }
 
     $data = json_decode(file_get_contents($file), true);
-
-    // Cache-Alter zurückgeben
     $cacheAge = $age;
-
     return json_last_error() === JSON_ERROR_NONE ? $data : null;
 }
 
@@ -101,19 +86,13 @@ function setCachedData($key, $data)
     file_put_contents($file, json_encode($data));
 }
 
-/**
- * OpenStreetMap (Nominatim) Fallback
- */
 function getStreetNameFromOSM(float $lat, float $lon): ?string
 {
     global $config;
-
-    // Koordinaten auf 4 Nachkommastellen runden für bessere Cache-Treffer
     $lat = round($lat, 4);
     $lon = round($lon, 4);
 
     $cacheKey = "geo_osm_" . number_format($lat, 4) . "_" . number_format($lon, 4);
-
     $cachedResult = getCachedData($cacheKey);
     if ($cachedResult !== null) {
         logDebug("OSM Cache hit for {$lat},{$lon}: {$cachedResult}");
@@ -130,7 +109,7 @@ function getStreetNameFromOSM(float $lat, float $lon): ?string
     curl_setopt_array($ch, [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 3, // Schnelleres Timeout
+        CURLOPT_TIMEOUT => 3,
         CURLOPT_USERAGENT => 'WazeFeedGenerator/1.0 (contact: admin@yourdomain.com)',
         CURLOPT_FOLLOWLOCATION => true,
     ]);
@@ -147,7 +126,6 @@ function getStreetNameFromOSM(float $lat, float $lon): ?string
 
     $data = json_decode($response, true);
 
-    // Nominatim Struktur: address.road ist meist die Straße
     if (isset($data['address'])) {
         $street = $data['address']['road']
             ?? $data['address']['pedestrian']
@@ -161,7 +139,6 @@ function getStreetNameFromOSM(float $lat, float $lon): ?string
         }
     }
 
-    // Fallback: display_name parsen
     if (!empty($data['display_name'])) {
         $parts = explode(',', $data['display_name']);
         if (count($parts) > 0) {
@@ -176,25 +153,15 @@ function getStreetNameFromOSM(float $lat, float $lon): ?string
     return null;
 }
 
-/**
- * Hauptfunktion zur Straßenermittlung (Waze mit OSM Fallback)
- */
 function getStreetNameFromWaze(float $lat, float $lon): array
 {
     global $config;
-
-    // Cache-Alter Variable
     $cacheAge = null;
-
-    // Koordinaten auf 4 Nachkommastellen runden für bessere Cache-Treffer
     $lat = round($lat, 4);
     $lon = round($lon, 4);
 
-    // 1. Versuche Waze, wenn Token vorhanden ist
     if (!empty($config['WAZE_REVERSE_GEOCODE_TOKEN'])) {
         $cacheKey = "geo_waze_" . number_format($lat, 6) . "_" . number_format($lon, 6);
-
-        // Cache prüfen mit Referenz auf cacheAge
         $cachedResult = getCachedData($cacheKey, $cacheAge);
         if ($cachedResult !== null) {
             logDebug("Waze Cache hit for {$lat},{$lon}: {$cachedResult}");
@@ -212,7 +179,7 @@ function getStreetNameFromWaze(float $lat, float $lon): array
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 3, // Schnelleres Timeout
+            CURLOPT_TIMEOUT => 3,
             CURLOPT_CONNECTTIMEOUT => 2,
             CURLOPT_USERAGENT => 'WazeFeedGenerator/1.0 (contact: admin@yourdomain.com)',
             CURLOPT_FOLLOWLOCATION => true,
@@ -225,16 +192,12 @@ function getStreetNameFromWaze(float $lat, float $lon): array
 
         if (!$error && $httpCode === 200 && !empty($response)) {
             $data = json_decode($response, true);
-
             if (json_last_error() !== JSON_ERROR_NONE) {
                 logDebug("Waze JSON decode error");
             } else {
-                // Waze Struktur Analyse
                 $street = null;
-
                 if (isset($data['result']) && is_array($data['result']) && !empty($data['result'])) {
                     $firstResult = $data['result'][0];
-
                     if (isset($firstResult['names']) && is_array($firstResult['names']) && !empty($firstResult['names'])) {
                         $street = trim($firstResult['names'][0]);
                     } elseif (isset($firstResult['street']) && !empty($firstResult['street'])) {
@@ -257,7 +220,6 @@ function getStreetNameFromWaze(float $lat, float $lon): array
         }
     }
 
-    // 2. Fallback: OpenStreetMap (OSM)
     $osmStreet = getStreetNameFromOSM($lat, $lon);
     if ($osmStreet !== null) {
         return ['street' => $osmStreet, 'source' => 'nominatim', 'cache_age' => null];
@@ -270,8 +232,6 @@ function getStreetNameFromWaze(float $lat, float $lon): array
 
 $traccarUrl = rtrim($config['TRACCAR_URL'], '/');
 $authEndpoint = $traccarUrl . '/api/session';
-
-// Cookie-File für JSESSIONID erstellen
 $cookieFile = sys_get_temp_dir() . '/traccar_cookie_' . getmypid() . '.txt';
 
 $ch = curl_init();
@@ -300,12 +260,11 @@ if ($httpCode !== 200 || !$authResponse) {
 $authResult = json_decode($authResponse, true);
 if (json_last_error() !== JSON_ERROR_NONE || !isset($authResult['id'])) {
     http_response_code(500);
-    die("Ungültige Antwort von Traccar bei der Anmeldung.");
+    die("Ungueltige Antwort von Traccar bei der Anmeldung.");
 }
 
-// Geräte abrufen (mit Cookie)
-
-$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000&attributes=deviceAttributes';
+// Geraete abrufen
+$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000';
 $ch = curl_init();
 curl_setopt_array($ch, [
     CURLOPT_URL => $devicesEndpoint,
@@ -320,105 +279,83 @@ curl_close($ch);
 
 if (!$devicesJson) {
     http_response_code(500);
-    die("Fehler beim Laden der Geräte.");
+    die("Fehler beim Laden der Geraete.");
 }
 
 $devices = json_decode($devicesJson, true);
 if (json_last_error() !== JSON_ERROR_NONE || !is_array($devices)) {
     http_response_code(500);
-    die("Ungültige Geräte-Daten von Traccar.");
+    die("Ungueltige Geraete-Daten von Traccar.");
 }
 
-// XML Header
+// Positionen abrufen (mit geofenceIds Attribut)
+$positionsEndpoint = $traccarUrl . '/api/positions?limit=-1&attributes=emstatus,geofenceIds';
+$ch = curl_init();
+curl_setopt_array($ch, [
+    CURLOPT_URL => $positionsEndpoint,
+    CURLOPT_HTTPHEADER => ['Accept: application/json'],
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_COOKIEFILE => $cookieFile,
+    CURLOPT_COOKIEJAR => $cookieFile,
+]);
+
+$allPositionsJson = curl_exec($ch);
+curl_close($ch);
+
+if (!$allPositionsJson) {
+    http_response_code(500);
+    die("Fehler beim Laden der Positionsdaten.");
+}
+
+$allPositions = json_decode($allPositionsJson, true);
+if (json_last_error() !== JSON_ERROR_NONE || !is_array($allPositions)) {
+    http_response_code(500);
+    die("Ungueltige Positions-Daten von Traccar.");
+}
+
+// TEMP: Log structure of first position to find geofenceIds
+if (!empty($allPositions) && is_array($allPositions[0])) {
+    $firstPos = $allPositions[0];
+    logDebug("POSITION STRUCTURE - first position keys: [" . implode(', ', array_keys($firstPos)) . "]");
+    logDebug("POSITION STRUCTURE - geofenceIds key (top-level) exists: " . (isset($firstPos['geofenceIds']) ? 'YES' : 'NO'));
+    if (isset($firstPos['geofenceIds'])) {
+        logDebug("POSITION STRUCTURE - geofenceIds value: " . json_encode($firstPos['geofenceIds']));
+    }
+    if (isset($firstPos['attributes']) && is_array($firstPos['attributes'])) {
+        logDebug("POSITION STRUCTURE - attributes keys: [" . implode(', ', array_keys($firstPos['attributes'])) . "]");
+        if (isset($firstPos['attributes']['geofenceIds'])) {
+            logDebug("POSITION STRUCTURE - attributes.geofenceIds value: " . json_encode($firstPos['attributes']['geofenceIds']));
+        }
+    }
+}
+
+$positionsByDevice = [];
+foreach ($allPositions as $pos) {
+    if (!isset($pos['deviceId']) || !isset($pos['fixTime'])) continue;
+    $deviceId = $pos['deviceId'];
+    if (!isset($positionsByDevice[$deviceId]) || strtotime($pos['fixTime']) > strtotime($positionsByDevice[$deviceId]['fixTime'])) {
+        $positionsByDevice[$deviceId] = $pos;
+    }
+}
+
+// Geofence-IDs werden aus den Positionen geholt (nicht aus Devices)
+// $geofenceCache wird mit geofenceIds jeder Position gefuellt
+
+// XML Ausgabe
 header('Content-Type: application/xml; charset=utf-8');
 echo '<?xml version="1.0" encoding="UTF-8"?>';
 ?>
 <incidents>
     <?php
-
-    // Performance-Optimierung: Alle Positionen einmalig laden & gruppieren
-    $positionsEndpoint = $traccarUrl . "/api/positions?limit=-1&attributes=emstatus";
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => $positionsEndpoint,
-        CURLOPT_HTTPHEADER => ['Accept: application/json'],
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_COOKIEFILE => $cookieFile,
-        CURLOPT_COOKIEJAR => $cookieFile,
-    ]);
-
-    $allPositionsJson = curl_exec($ch);
-    curl_close($ch);
-
-    if (!$allPositionsJson) {
-        http_response_code(500);
-        die("Fehler beim Laden der Positionsdaten.");
-    }
-
-    $allPositions = json_decode($allPositionsJson, true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($allPositions)) {
-        http_response_code(500);
-        die("Ungültige Positions-Daten von Traccar.");
-    }
-
-    $positionsByDevice = [];
-    foreach ($allPositions as $pos) {
-        if (!isset($pos['deviceId']) || !isset($pos['fixTime'])) continue;
-
-        $deviceId = $pos['deviceId'];
-        if (!isset($positionsByDevice[$deviceId]) || strtotime($pos['fixTime']) > strtotime($positionsByDevice[$deviceId]['fixTime'])) {
-            $positionsByDevice[$deviceId] = $pos;
-        }
-    }
-
-    // Geofence-IDs separat laden über Device-Attributes (wenn Filter aktiv ist)
-    // HINWEIS: Traccar speichert Device-Attribute im Device-Objekt selbst!
-    // Wir prüfen direkt im Device-Objekt nach deviceAttributes
-    $geofenceCache = null;
-    $geofenceLoadingSuccess = false;
-
-    if (!empty($config['GEOFENCE_IDS'])) {
-        logDebug("Prüfe Device-Attributes für Geofence-Filter...");
-        $geofenceCache = [];
-
-        foreach ($devices as $device) {
-            $deviceId = $device['id'];
-            $deviceName = $device['name'] ?? 'Unknown';
-
-            // Prüfe ob deviceAttributes im Device-Objekt vorhanden sind
-            if (isset($device['deviceAttributes']) && is_array($device['deviceAttributes'])) {
-                foreach ($device['deviceAttributes'] as $attr) {
-                    if (isset($attr['key']) && $attr['key'] === 'geofenceIds') {
-                        $geofenceCache[$deviceId] = $attr['value'] ?? '';
-                        $geofenceLoadingSuccess = true;
-                        logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . ($attr['value'] ?? 'empty') . "]");
-                        break;
-                    }
-                }
-            }
-        }
-
-        if ($geofenceLoadingSuccess) {
-            logDebug("Geofence-IDs erfolgreich geladen für " . count($geofenceCache) . " Geräte.");
-        } else {
-            logDebug("Keine geofenceIds in Device-Attributes gefunden.");
-        }
-    }
-
-
-    // Fahrzeuge verarbeiten und XML-Items generieren
     foreach ($devices as $device) {
         $deviceId = $device['id'];
 
-        // Prüfen, ob Gerät ignoriert werden soll
         if (in_array($deviceId, $config['IGNORED_DEVICES']) || !isset($positionsByDevice[$deviceId])) continue;
 
-        // Prüfen, ob nur bestimmte Gruppen angezeigt werden sollen
         if (!empty($config['EMERGENCY_GROUPS'])) {
-            // Wenn EMERGENCY_GROUPS gesetzt ist, prüfen wir die groupId des Geräts
             $groupId = $device['groupId'] ?? null;
             if ($groupId === null || !in_array($groupId, $config['EMERGENCY_GROUPS'])) {
-                logDebug("Device {$deviceId} (groupId: {$groupId}) nicht in EMERGENCY_GROUPS. Übersprungen.");
+                logDebug("Device {$deviceId} nicht in EMERGENCY_GROUPS. Uebersprungen.");
                 continue;
             }
         }
@@ -426,36 +363,28 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         $latestPos = $positionsByDevice[$deviceId];
         $lat = $latestPos['latitude'] ?? null;
         $lon = $latestPos['longitude'] ?? null;
-
         if ($lat === null || $lon === null) continue;
 
         $speedKmh = ($latestPos['speed'] ?? 0) * 3.6;
         if ($speedKmh < $config['MIN_SPEED_KMH']) continue;
 
-        // Straßennamen ermitteln (mit OSM Fallback und Source-Info)
         $geoData = getStreetNameFromWaze($lat, $lon);
-        $street = $geoData['street'];
-        $source = $geoData['source'];
-        $cacheAge = $geoData['cache_age'];
+        $street = $geoData['street'] ?? '';
+        $source = $geoData['source'] ?? '';
+        $cacheAge = $geoData['cache_age'] ?? null;
 
-        // Nur anzeigen wenn etwas gefunden wurde
-        if (empty($street)) {
-            $street = "";
-        } else {
+        if (!empty($street)) {
             $street = trim($street);
         }
 
-        $deviceName = isset($device['name']) ? $device['name'] : 'Unknown Device';
+        $deviceName = $device['name'] ?? 'Unknown Device';
 
-        // emstatus aus latestPos attributes extrahieren (Traccar speichert Device-Attribute in Positions)
+        // emstatus aus Position
         $emstatus = null;
         if (isset($latestPos['attributes']) && is_array($latestPos['attributes'])) {
-            // Versuche 1: Flaches Array {key => value}
             if (isset($latestPos['attributes']['emstatus'])) {
                 $emstatus = $latestPos['attributes']['emstatus'];
-            }
-            // Versuche 2: Liste von {key, value} Objekten
-            elseif (isset($latestPos['attributes'][0])) {
+            } elseif (isset($latestPos['attributes'][0])) {
                 foreach ($latestPos['attributes'] as $attr) {
                     if (isset($attr['key']) && $attr['key'] === 'emstatus') {
                         $emstatus = $attr['value'] ?? null;
@@ -465,64 +394,59 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             }
         }
 
-        // Geofence-IDs initialisieren (wird später im Filter verwendet)
-        $deviceGeofenceIds = null;
+        // Geofence-IDs aus der Position extrahieren
+        $positionGeofenceIds = null;
+        if (isset($latestPos['geofenceIds']) && is_array($latestPos['geofenceIds'])) {
+            $positionGeofenceIds = $latestPos['geofenceIds'];
+            logDebug("Device {$deviceId} ({$deviceName}) - position geofenceIds (top-level): [" . implode(',', $positionGeofenceIds) . "]");
+        } elseif (isset($latestPos['attributes']['geofenceIds'])) {
+            $raw = $latestPos['attributes']['geofenceIds'];
+            if (is_array($raw)) {
+                $positionGeofenceIds = $raw;
+            } elseif (is_string($raw)) {
+                $positionGeofenceIds = array_map('intval', array_filter(explode(',', $raw)));
+            }
+            logDebug("Device {$deviceId} ({$deviceName}) - position geofenceIds (from attributes): [" . implode(',', $positionGeofenceIds ?? []) . "]");
+        } else {
+            logDebug("Device {$deviceId} ({$deviceName}) - keine geofenceIds in Position gefunden.");
+        }
 
-        // Filter: Nur Geräte mit passendem emstatus anzeigen (wenn Filter gesetzt ist)
+        // emstatus Filter
         if (!empty($config['EMSTATUS_FILTER']) && $emstatus !== null) {
             if (!in_array((int)$emstatus, $config['EMSTATUS_FILTER'])) {
-                logDebug("Device {$deviceId} (emstatus: {$emstatus}) nicht im EMSTATUS_FILTER. Übersprungen.");
+                logDebug("Device {$deviceId} (emstatus: {$emstatus}) nicht im EMSTATUS_FILTER. Uebersprungen.");
                 continue;
             }
         }
 
-        // Geofence-Filter: Nur Geräte innerhalb der konfigurierten Geofences anzeigen (wenn Filter gesetzt ist)
-        // Traccar liefert geofenceIds über deviceAttributes im Device-Objekt
+        // geofenceIds Filter
+        $deviceGeofenceIds = null;
         if (!empty($config['GEOFENCE_IDS'])) {
             logDebug("GEOFENCE_IDS aktiviert: [" . implode(',', $config['GEOFENCE_IDS']) . "]");
 
-            // Nur filtern, wenn Geofence-Filter erfolgreich geladen wurde
-            if ($geofenceLoadingSuccess) {
-                $geofenceMatch = false;
-
-                if (isset($geofenceCache[$deviceId])) {
-                    $geofenceIdsStr = $geofenceCache[$deviceId];
-                    if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
-                        $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
-                        logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . implode(',', $deviceGeofenceIds) . "]");
-
-                        // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
-                        $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
-                        if (!empty($matches)) {
-                            $geofenceMatch = true;
-                            logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
-                        } else {
-                            logDebug("Device {$deviceId} - Geofence-Filter: FAIL (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], device: [" . implode(',', $deviceGeofenceIds) . "])");
-                        }
-                    }
-                } else {
-                    logDebug("Device {$deviceId} ({$deviceName}) - keine geofenceIds im Device-Objekt gefunden.");
-                }
-
-                // Gerät überspringen, wenn es nicht im konfigurierten Geofence ist
-                if (!$geofenceMatch) {
-                    logDebug("Device {$deviceId} ({$deviceName}) übersprungen - nicht im konfigurierten Geofence.");
+            if ($positionGeofenceIds !== null) {
+                $deviceGeofenceIds = $positionGeofenceIds;
+                $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
+                if (empty($matches)) {
+                    logDebug("Device {$deviceId} - Geofence-Filter: FAIL (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], position: [" . implode(',', $deviceGeofenceIds) . "])");
+                    logDebug("Device {$deviceId} uebersprungen - nicht im konfigurierten Geofence.");
                     continue;
+                } else {
+                    logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
                 }
             } else {
-                logDebug("GEOFENCE_IDS gesetzt, aber keine geofenceIds in Device-Objekten gefunden - Filter wird ignoriert.");
+                logDebug("Device {$deviceId} - Geofence-Filter: FAIL (keine geofenceIds in Position) - wird uebersprungen.");
+                continue;
             }
         }
 
-        // Debug: Zeige alle verfügbaren Attribute (nur im Debug-Modus)
+        // Debug-Info fuer Attribute
         if (!empty($config['DEBUG_MODE']) && empty($emstatus)) {
             $attrKeys = [];
             if (isset($latestPos['attributes']) && is_array($latestPos['attributes'])) {
-                // Flaches Array
                 if (!isset($latestPos['attributes'][0])) {
                     $attrKeys = array_keys($latestPos['attributes']);
                 } else {
-                    // Liste von Objekten
                     foreach ($latestPos['attributes'] as $attr) {
                         $attrKeys[] = $attr['key'] ?? 'unknown';
                     }
@@ -531,27 +455,21 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             logDebug("Device {$deviceId} ({$deviceName}) - position attributes keys: [" . implode(', ', $attrKeys) . "]");
         }
 
-        // Zeitdifferenz berechnen: Wie lange her ist die Position an Traccar gesendet worden?
         $fixTime = strtotime($latestPos['fixTime']);
         $timeSinceFix = time() - $fixTime;
-
-        // Koordinaten auf 5 Nachkommastellen runden für XML-Ausgabe
         $lat = round($lat, 5);
         $lon = round($lon, 5);
-
     ?>
         <?php if ($config['DEBUG_MODE']): ?>
-            <!-- Debug-Informationen nur im Feed, wenn DEBUG_MODE aktiv ist -->
-            <!-- Incident für Gerät: <?php echo htmlspecialchars($deviceName); ?> (ID: <?php echo $deviceId; ?>) -->
+            <!-- Debug-Informationen -->
+            <!-- Incident fuer Geraet: <?php echo htmlspecialchars($deviceName); ?> (ID: <?php echo $deviceId; ?>) -->
             <!-- Koordinaten: Lat=<?php echo $lat; ?>, Lon=<?php echo $lon; ?> -->
-            <!-- Quelle der Straße: <?php echo htmlspecialchars($source); ?> -->
-            <!-- Zeit seit Positionsübermittlung an Traccar: <?php echo $timeSinceFix; ?> Sekunden -->
+            <!-- Quelle der Strasse: <?php echo htmlspecialchars($source); ?> -->
+            <!-- Zeit seit Positionsuebermittlung an Traccar: <?php echo $timeSinceFix; ?> Sekunden -->
             <!-- Cache-Alter: <?php echo ($cacheAge !== null) ? $cacheAge . ' Sekunden' : 'Neu (kein Cache)'; ?> -->
             <!-- emstatus: <?php echo htmlspecialchars($emstatus ?? 'nicht gesetzt'); ?> -->
             <!-- Geofence-Filter: <?php echo !empty($config['GEOFENCE_IDS']) ? ($deviceGeofenceIds !== null ? 'aktiv - IDs: ' . implode(',', $deviceGeofenceIds) : 'aktiv - keine IDs gefunden') : 'deaktiviert'; ?> -->
-            
         <?php endif; ?>
-
         <incident id="<?php echo htmlspecialchars($deviceName); ?>">
             <type>HAZARD</type>
             <subtype>HAZARD_ON_ROAD_EMERGENCY_VEHICLE</subtype>
@@ -562,7 +480,5 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         </incident>
     <?php
     }
-
     ?>
 </incidents>
-<?php
