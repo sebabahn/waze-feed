@@ -517,6 +517,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
             <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
             <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
+            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
         <?php endif; ?>
 
         <incident id="<?php echo htmlspecialchars($deviceName); ?>">
