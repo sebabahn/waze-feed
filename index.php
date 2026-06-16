@@ -444,7 +444,6 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         // Geofence-Filter: Nur Geräte innerhalb der konfigurierten Geofences anzeigen (wenn Filter gesetzt ist)
         // Traccar liefert geofence_ids als kommaseparierte String-Liste
         if (!empty($config['GEOFENCE_IDS'])) {
-            $deviceGeofenceIds = null;
             if (isset($latestPos['geofenceIds'])) {
                 $geofenceIdsStr = $latestPos['geofenceIds'];
                 if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
