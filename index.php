@@ -491,36 +491,42 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         // Traccar liefert geofenceIds über /api/positionAttributes - separat laden
         if (!empty($config['GEOFENCE_IDS'])) {
             logDebug("GEOFENCE_IDS aktiviert: [" . implode(',', $config['GEOFENCE_IDS']) . "]");
-            $geofenceMatch = false;
 
-            if ($geofenceCache !== null && isset($latestPos['id'])) {
-                $posId = $latestPos['id'];
-                if (isset($geofenceCache[$posId])) {
-                    $geofenceIdsStr = $geofenceCache[$posId];
-                    if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
-                        $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
-                        logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . implode(',', $deviceGeofenceIds) . "]");
+            // Nur filtern, wenn Geofence-Cache erfolgreich geladen wurde
+            if ($geofenceCache !== null) {
+                $geofenceMatch = false;
 
-                        // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
-                        $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
-                        if (!empty($matches)) {
-                            $geofenceMatch = true;
-                            logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
+                if (isset($latestPos['id'])) {
+                    $posId = $latestPos['id'];
+                    if (isset($geofenceCache[$posId])) {
+                        $geofenceIdsStr = $geofenceCache[$posId];
+                        if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
+                            $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
+                            logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . implode(',', $deviceGeofenceIds) . "]");
+
+                            // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
+                            $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
+                            if (!empty($matches)) {
+                                $geofenceMatch = true;
+                                logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
+                            } else {
+                                logDebug("Device {$deviceId} - Geofence-Filter: FAIL (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], device: [" . implode(',', $deviceGeofenceIds) . "])");
+                            }
                         } else {
-                            logDebug("Device {$deviceId} - Geofence-Filter: FAIL (conifguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], device: [" . implode(',', $deviceGeofenceIds) . "])");
+                            logDebug("Device {$deviceId} ({$deviceName}) - keine geofenceIds in Position gefunden.");
                         }
                     } else {
-                        logDebug("Device {$deviceId} ({$deviceName}) - keine geofenceIds in Position gefunden.");
+                        logDebug("Device {$deviceId} ({$deviceName}) - Position-ID {$posId} nicht im Geofence-Cache.");
                     }
-                } else {
-                    logDebug("Device {$deviceId} ({$deviceName}) - Position-ID {$posId} nicht im Geofence-Cache.");
                 }
-            }
 
-            // Gerät überspringen, wenn es nicht im konfigurierten Geofence ist
-            if (!$geofenceMatch) {
-                logDebug("Device {$deviceId} ({$deviceName}) übersprungen - nicht im konfigurierten Geofence.");
-                continue;
+                // Gerät überspringen, wenn es nicht im konfigurierten Geofence ist
+                if (!$geofenceMatch) {
+                    logDebug("Device {$deviceId} ({$deviceName}) übersprungen - nicht im konfigurierten Geofence.");
+                    continue;
+                }
+            } else {
+                logDebug("GEOFENCE_IDS gesetzt, aber Geofence-Cache konnte nicht geladen werden - Filter wird ignoriert.");
             }
         }
 
