@@ -11,7 +11,7 @@ header('Cache-Control: private, max-age=10, pre-check=10');
 header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 10) . ' GMT');
 
 // Config laden mit Error-Handling
-$configFile = __DIR__ . '/config-test.php';
+$configFile = __DIR__ . '/config.php';
 if (!file_exists($configFile)) {
     $configFile = 'config.php';
 }
@@ -335,7 +335,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
     <?php
 
     // Performance-Optimierung: Alle Positionen einmalig laden & gruppieren
-    $positionsEndpoint = $traccarUrl . '/api/positions?limit=-1&attributes=emstatus&attributes=emstatus&attributes=emstatus&attributes=emstatus&attributes=emstatus&attributes=emstatus';
+    $positionsEndpoint = $traccarUrl . "/api/positions?limit=-1&attributes=emstatus";
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $positionsEndpoint,
@@ -470,7 +470,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             <polyline><?php echo "{$lat} {$lon}"; ?></polyline>
             <direction>BOTH_DIRECTIONS</direction>
             <street><?php echo htmlspecialchars($street ?: 'Unbekannt'); ?></street>
-            <description>Einsatzfahrzeug (<?php echo htmlspecialchars($deviceName); ?>) - Speed: <?php echo round($speedKmh, 1); ?> km/h</description>
+            <description>Einsatzfahrzeug - Geschwindigkeit: <?php echo round($speedKmh, 1); ?> km/h</description>
         </incident>
     <?php
     }
