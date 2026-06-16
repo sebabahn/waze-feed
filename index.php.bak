@@ -335,7 +335,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
     <?php
 
     // Performance-Optimierung: Alle Positionen einmalig laden & gruppieren
-    $positionsEndpoint = $traccarUrl . '/api/positions?limit=-1&attributes=emstatus&attributes=emstatus&attributes=emstatus&attributes=emstatus&attributes=emstatus&attributes=emstatus';
+    $positionsEndpoint = $traccarUrl . '/api/positions?limit=-1';
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $positionsEndpoint,
@@ -413,17 +413,10 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         // emstatus aus latestPos attributes extrahieren (Traccar speichert Device-Attribute in Positions)
         $emstatus = null;
         if (isset($latestPos['attributes']) && is_array($latestPos['attributes'])) {
-            // Versuche 1: Flaches Array {key => value}
-            if (isset($latestPos['attributes']['emstatus'])) {
-                $emstatus = $latestPos['attributes']['emstatus'];
-            }
-            // Versuche 2: Liste von {key, value} Objekten
-            elseif (isset($latestPos['attributes'][0])) {
-                foreach ($latestPos['attributes'] as $attr) {
-                    if (isset($attr['key']) && $attr['key'] === 'emstatus') {
-                        $emstatus = $attr['value'] ?? null;
-                        break;
-                    }
+            foreach ($latestPos['attributes'] as $attr) {
+                if (isset($attr['key']) && $attr['key'] === 'emstatus') {
+                    $emstatus = $attr['value'] ?? null;
+                    break;
                 }
             }
         }
@@ -432,14 +425,8 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         if (!empty($config['DEBUG_MODE']) && empty($emstatus)) {
             $attrKeys = [];
             if (isset($latestPos['attributes']) && is_array($latestPos['attributes'])) {
-                // Flaches Array
-                if (!isset($latestPos['attributes'][0])) {
-                    $attrKeys = array_keys($latestPos['attributes']);
-                } else {
-                    // Liste von Objekten
-                    foreach ($latestPos['attributes'] as $attr) {
-                        $attrKeys[] = $attr['key'] ?? 'unknown';
-                    }
+                foreach ($latestPos['attributes'] as $attr) {
+                    $attrKeys[] = $attr['key'] ?? 'unknown';
                 }
             }
             logDebug("Device {$deviceId} ({$deviceName}) - position attributes keys: [" . implode(', ', $attrKeys) . "]");
