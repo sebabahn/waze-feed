@@ -23,6 +23,12 @@ if (!file_exists($configFile)) {
 
 $config = require $configFile;
 
+// Sicherstellen, dass $config ein Array ist (falls Config-Datei ungültigen Inhalt hat)
+if (!is_array($config)) {
+    http_response_code(500);
+    die('Fehler: Config-Datei muss ein Array zurückgeben.');
+}
+
 // Default-Werte sicherstellen
 $config = array_merge([
     'TRACCAR_URL' => '',
@@ -297,7 +303,7 @@ if (json_last_error() !== JSON_ERROR_NONE || !isset($authResult['id'])) {
 
 // Geräte abrufen (mit Cookie)
 
-$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000&attributes=emstatus';
+$devicesEndpoint = $traccarUrl . '/api/devices?limit=1000';
 $ch = curl_init();
 curl_setopt_array($ch, [
     CURLOPT_URL => $devicesEndpoint,
@@ -404,8 +410,16 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
 
         $deviceName = isset($device['name']) ? $device['name'] : 'Unknown Device';
 
-        // emstatus aus device attributes lesen (wenn vorhanden)
-        $emstatus = $device['attributes']['emstatus'] ?? null;
+        // emstatus aus device attributes extrahieren (Traccar API Format: Liste von {key, value})
+        $emstatus = null;
+        if (isset($device['attributes']) && is_array($device['attributes'])) {
+            foreach ($device['attributes'] as $attr) {
+                if (isset($attr['key']) && $attr['key'] === 'emstatus') {
+                    $emstatus = $attr['value'] ?? null;
+                    break;
+                }
+            }
+        }
 
         // Zeitdifferenz berechnen: Wie lange her ist die Position an Traccar gesendet worden?
         $fixTime = strtotime($latestPos['fixTime']);
