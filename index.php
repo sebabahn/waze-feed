@@ -337,7 +337,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
     <?php
 
     // Performance-Optimierung: Alle Positionen einmalig laden & gruppieren
-    $positionsEndpoint = $traccarUrl . "/api/positions?limit=-1&attributes=emstatus";
+    $positionsEndpoint = $traccarUrl . "/api/positions?limit=-1&attributes=emstatus,geofenceIds";
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $positionsEndpoint,
@@ -442,38 +442,18 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         }
 
         // Geofence-Filter: Nur Geräte innerhalb der konfigurierten Geofences anzeigen (wenn Filter gesetzt ist)
-        // Traccar liefert geofence_ids als kommaseparierte String-Liste
-        if (!empty($config['GEOFENCE_IDS'])) {
-            if (isset($latestPos['geofenceIds'])) {
-                $geofenceIdsStr = $latestPos['geofenceIds'];
-                if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
-                    // String "123,456" in Array konvertieren
-                    $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
-                }
-            } elseif (isset($latestPos['attributes']) && is_array($latestPos['attributes'])) {
-                // Versuche 1: Flaches Array
-                if (isset($latestPos['attributes']['geofenceIds'])) {
-                    $geofenceIdsStr = $latestPos['attributes']['geofenceIds'];
-                    if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
-                        $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
-                    }
-                }
-                // Versuche 2: Liste von {key, value} Objekten
-                elseif (isset($latestPos['attributes'][0])) {
-                    foreach ($latestPos['attributes'] as $attr) {
-                        if (isset($attr['key']) && $attr['key'] === 'geofenceIds') {
-                            $geofenceIdsStr = $attr['value'] ?? '';
-                            if (!empty($geofenceIdsStr)) {
-                                $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
+        // Traccar liefert geofenceIds als direktes Feld in der Position
+        if (!empty($config['GEOFENCE_IDS']) && isset($latestPos['geofenceIds'])) {
+            $geofenceIdsStr = $latestPos['geofenceIds'];
+            if (is_string($geofenceIdsStr) && !empty($geofenceIdsStr)) {
+                $deviceGeofenceIds = array_map('intval', array_filter(explode(',', $geofenceIdsStr)));
 
-            // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
-            if ($deviceGeofenceIds !== null) {
+                // Debug: Zeige geofenceIds wenn vorhanden
+                if (!empty($config['DEBUG_MODE'])) {
+                    logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . implode(',', $deviceGeofenceIds) . "]");
+                }
+
+                // Prüfen ob eines der konfigurierten Geofence-IDs im Gerät gefunden wurde
                 $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
                 if (empty($matches)) {
                     logDebug("Device {$deviceId} (geofenceIds: " . implode(',', $deviceGeofenceIds) . ") nicht im GEOFENCE_IDS. Übersprungen.");
