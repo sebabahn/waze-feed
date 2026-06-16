@@ -41,6 +41,7 @@ $config = array_merge([
     'IGNORED_DEVICES' => [],
     'EMERGENCY_GROUPS' => [], // Leeres Array bedeutet: alle Gruppen erlaubt
     'EMSTATUS_FILTER' => [], // Leeres Array bedeutet: alle emstatus erlaubt
+    'GEOFENCE_NAMES' => [], // Leeres Array bedeutet: kein Geofence-Filter
     'MIN_SPEED_KMH' => 0,
     'DEBUG_MODE' => false,
 ], $config);
@@ -48,29 +49,49 @@ $config = array_merge([
 error_reporting(E_ALL & ~E_DEPRECATED);
 ini_set('display_errors', 0);
 
-function logDebug($message)
-{
-    global $config;
-    if (!empty($config['DEBUG_MODE'])) {
-        error_log("[WazeFeed] " . $message);
-    }
-}
-
 /**
- * File-Cache mit JSON (dynamische TTL basierend auf Quelle)
+ * Lädt alle Geofences von Traccar und gibt eine Map [Name => ID] zurück
  */
-function getCachedData($key, &$cacheAge = null)
+function loadGeofenceIds(string $traccarUrl, string $cookieFile, array $geoFenceNames): array
 {
-    global $config;
-    $cacheDir = sys_get_temp_dir() . '/waze_feed_cache';
-    if (!is_dir($cacheDir)) mkdir($cacheDir, 0755, true);
-
-    $file = $cacheDir . '/' . md5($key) . '.json';
-    if (!file_exists($file)) {
-        $cacheAge = null;
-        return null;
+    if (empty($geoFenceNames)) {
+        return [];
     }
 
+    $geofencesEndpoint = $traccarUrl . '/api/geofences?limit=1000';
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $geofencesEndpoint,
+        CURLOPT_HTTPHEADER => ['Accept: application/json'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_COOKIEFILE => $cookieFile,
+        CURLOPT_COOKIEJAR => $cookieFile,
+    ]);
+
+    $geofencesJson = curl_exec($ch);
+    curl_close($ch);
+
+    if (!$geofencesJson) {
+        logDebug("Fehler beim Laden der Geofences.");
+        return [];
+    }
+
+    $geofences = json_decode($geofencesJson, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($geofences)) {
+        logDebug("Ungültige Geofence-Daten von Traccar.");
+        return [];
+    }
+
+    // Erstelle Map von Geofence-Name zu Geofence-ID
+    $geoFenceIdMap = [];
+    foreach ($geofences as $geofence) {
+        if (isset($geofence['name']) && in_array($geofence['name'], $geoFenceNames)) {
+            $geoFenceIdMap[$geofence['name']] = $geofence['id'];
+        }
+    }
+
+    logDebug("Geofence-Map geladen: " . count($geoFenceIdMap) . " Geofences für Namen: [" . implode(', ', $geoFenceNames) . "]");
+    return $geoFenceIdMap
     // Cache TTL basierend auf Quelle (hier vereinfacht auf 5 Min Standard)
     // In der Praxis könnte man die TTL aus dem Dateinamen oder Metadaten extrahieren
     $age = time() - filemtime($file);
