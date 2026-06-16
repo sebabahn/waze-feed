@@ -430,6 +430,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             }
         }
 
+        // Geofence-IDs initialisieren (wird später im Filter verwendet)
+        $deviceGeofenceIds = null;
+
         // Filter: Nur Geräte mit passendem emstatus anzeigen (wenn Filter gesetzt ist)
         if (!empty($config['EMSTATUS_FILTER']) && $emstatus !== null) {
             if (!in_array((int)$emstatus, $config['EMSTATUS_FILTER'])) {
@@ -515,9 +518,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             <!-- Cache-Alter: <?php echo ($cacheAge !== null) ? $cacheAge . ' Sekunden' : 'Neu (kein Cache)'; ?> -->
             <!-- emstatus: <?php echo htmlspecialchars($emstatus ?? 'nicht gesetzt'); ?> -->
             <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
-            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
-            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
-            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
+            
         <?php endif; ?>
 
         <incident id="<?php echo htmlspecialchars($deviceName); ?>">
