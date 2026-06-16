@@ -1,61 +1,99 @@
 <?php
 /**
- * Waze Feed Generator - Configuration Template
+ * config.php.example – Vorlage für den Waze Incident Feed Generator
  * 
- * IMPORTANT: Copy this file to config.php and customize for your environment
- * DO NOT commit config.php to version control (it's in .gitignore)
+ * Kopieren Sie diese Datei nach config.php und passen Sie die Werte an.
+ * Alle sensiblen Zugangsdaten (Passwörter, Tokens, URLs) gehören ausschließlich in die config.php
+ * und dürfen nicht ins Versionskontrollsystem eingecheckt werden.
+ *
+ * Diese Datei dient als Dokumentation und Startpunkt für die Einrichtung.
  */
 
-// ============================================
-// Traccar Configuration
-// ============================================
-// Support environment variables for credentials
-$config['TRACCAR_URL'] = getenv('TRACCAR_URL') ?: 'http://localhost:8082';
-$config['USERNAME'] = getenv('TRACCAR_USERNAME') ?: 'admin@example.com';
-$config['PASSWORD'] = getenv('TRACCAR_PASSWORD') ?: 'admin';
+return [
+    // =========================================================================
+    // 1. Traccar-Verbindung
+    // =========================================================================
+    // TRACCAR_URL:  Basis-URL Ihrer Traccar-Installation inklusive Protokoll.
+    //               Beispiele:
+    //               - 'http://localhost:8082'               (lokale Entwicklung)
+    //               - 'https://traccar.organisation.de'     (produktiver Server)
+    'TRACCAR_URL'  => 'https://traccar.example.com',
 
-// ============================================
-// Waze Reverse Geocoding (optional)
-// ============================================
-// If you want street names from Waze instead of OSM, provide your Waze Partner Hub token
-// Leave empty to use OpenStreetMap Nominatim as fallback
-$config['WAZE_REVERSE_GEOCODE_TOKEN'] = getenv('WAZE_REVERSE_GEOCODE_TOKEN') ?: '';
-// ============================================
-// Feed Metadata
-// ============================================
-$config['FEED_TITLE'] = 'Waze Incident Feed';
-$config['FEED_LINK'] = ''; // e.g. 'https://example.com/waze-feed.php'
-$config['FEED_DESCRIPTION'] = 'Live emergency vehicle positions from Traccar';
-// ============================================
-// Device Filtering
-// ============================================
-// List of device IDs to completely ignore (not shown in feed)
-$config['IGNORED_DEVICES'] = [];
+    // USERNAME:     Traccar-Benutzerkonto (muss Leseberechtigung für Geräte haben).
+    //               Beispiel: 'mail@beispiel.de'
+    'USERNAME'     => 'your-email@example.com',
 
-// Groups that contain emergency vehicles (leave empty to allow all groups)
-$config['EMERGENCY_GROUPS'] = [
-    'FEUERWEHR',
-    'POLIZEI',
-    'RETTUNGSDIENST',
-    'THW'
+    // PASSWORD:     Passwort des Traccar-Benutzers.
+    //               Beispiel: 'DeinSicheresPasswort123'
+    'PASSWORD'     => 'your-traccar-password',
+
+    // =========================================================================
+    // 2. Waze Reverse-Geocoding
+    // =========================================================================
+    // WAZE_REVERSE_GEOCODE_TOKEN: Token für den Waze Reverse-Geocoding-Dienst.
+    //               Wird benötigt, wenn Straßennamen von Waze statt von OpenStreetMap
+    //               verwendet werden sollen. Token erhältlich unter
+    //               https://www.waze.com/row/reverse-geocode
+    //               Leer lassen = OpenStreetMap Nominatim wird genutzt.
+    //               Beispiel: '123456789_abcdef1234567890abcdef1234567890ab'
+    'WAZE_REVERSE_GEOCODE_TOKEN' => 'your-waze-token-here',
+
+    // =========================================================================
+    // 3. RSS-Feed-Konfiguration
+    // =========================================================================
+    // FEED_TITLE:       Titel des generierten RSS-Feeds.
+    //                   Beispiel: 'Einsatzfahrzeuge Stadt Beispiel'
+    'FEED_TITLE'        => 'Waze Incident Feed Generator',
+
+    // FEED_LINK:        Öffentlich erreichbare URL, unter der die Feed-Datei abrufbar ist.
+    //                   Beispiel: 'https://waze.kreisbrandinspektion.net/waze-feed.php'
+    'FEED_LINK'         => 'https://example.com/waze-feed.php',
+
+    // FEED_DESCRIPTION: Kurzbeschreibung für RSS-Reader.
+    //                   Beispiel: 'Live-Positionen von Feuerwehr-, Rettungs- und Polizeifahrzeugen.'
+    'FEED_DESCRIPTION'  => 'Live Vorfahrten von Einsatzfahrzeugen.',
+
+    // =========================================================================
+    // 4. Filtereinstellungen
+    // =========================================================================
+
+    // IGNORED_DEVICES:  Array mit Traccar-Geräte-IDs, die komplett ignoriert werden.
+    //                   Sinnvoll für Testfahrzeuge, Ausscheider oder defekte Geräte.
+    //                   Beispiel: [12, 34, 56]
+    'IGNORED_DEVICES'   => [],
+
+    // EMERGENCY_GROUPS: Array mit Gruppen-IDs (oder Tag-IDs), die als „Einsatzfahrzeug“ markiert sind.
+    //                   Nur Fahrzeuge in diesen Gruppen tauchen im Feed auf.
+    //                   Die IDs finden Sie in der Traccar-Oberfläche unter „Gruppen“.
+    //                   Beispiel: [1, 2, 3]
+    'EMERGENCY_GROUPS'  => [2],
+
+    // MIN_SPEED_KMH:    Mindestgeschwindigkeit in km/h. Fahrzeuge unter diesem Wert gelten als
+    //                   nicht aktiv (z. B. geparkt) und werden ignoriert.
+    //                   - Positiver Wert:  z. B. 5 – nur Fahrzeuge, die sich bewegen
+    //                   - Null (0):        alle Fahrzeuge, auch stehende (Vorsicht bei Standortaktualisierungen)
+    //                   - Negativer Wert:  deaktiviert die Geschwindigkeitsprüfung (z. B. -5)
+    'MIN_SPEED_KMH'     => 5,
+
+    // EMSTATUS_FILTER:  Array mit Traccar-Ereignis-Status-IDs, die als „Einsatz“ gelten sollen.
+    //                   Leeres Array = keine Filterung (alle Status werden akzeptiert).
+    //                   Übliche Werte in Traccar:
+    //                   - 3  = „Einsatz“ (on duty / emergency)
+    //                   - 4  = „Zum Einsatzort unterwegs“
+    //                   Beispiel: [3, 4]
+    'EMSTATUS_FILTER'   => [3,4,5],
+
+    // GEOFENCE_IDS:     Array mit Geofence-IDs. Nur Fahrzeuge innerhalb dieser Geofences
+    //                   werden berücksichtigt. Leeres Array = keine geografische Einschränkung.
+    //                   Die IDs entsprechen den in Traccar angelegten Geofences.
+    //                   Beispiel: [5, 12]
+    'GEOFENCE_IDS'      => [5],
+
+    // =========================================================================
+    // 5. Debugging
+    // =========================================================================
+    // DEBUG_MODE:       true  = detaillierte Logs (für Entwicklung/Fehlersuche, nicht im Live-Betrieb)
+    //                   false = normale Ausführung (empfohlen für Produktion)
+    'DEBUG_MODE'        => true,
 ];
-
-// ============================================
-// Movement Detection
-// ============================================
-// Minimum speed in km/h to include a device in the feed (0 = include all)
-$config['MIN_SPEED_KMH'] = 5;
-
-// ============================================
-// Debug Mode
-// ============================================
-// When true, additional debug info is logged and written as XML comments
-$config['DEBUG_MODE'] = false;
-
-// ============================================
-// Return configuration array
-// ============================================
-return $config;
-
-?>
 
