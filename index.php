@@ -514,6 +514,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             <!-- Zeit seit Positionsübermittlung an Traccar: <?php echo $timeSinceFix; ?> Sekunden -->
             <!-- Cache-Alter: <?php echo ($cacheAge !== null) ? $cacheAge . ' Sekunden' : 'Neu (kein Cache)'; ?> -->
             <!-- emstatus: <?php echo htmlspecialchars($emstatus ?? 'nicht gesetzt'); ?> -->
+            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
+            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
+            <!-- Geofence-IDs: <?php echo htmlspecialchars($deviceGeofenceIds !== null ? implode(',', $deviceGeofenceIds) : 'nicht gesetzt'); ?> -->
         <?php endif; ?>
 
         <incident id="<?php echo htmlspecialchars($deviceName); ?>">
