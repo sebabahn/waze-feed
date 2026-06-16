@@ -371,23 +371,22 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
         }
     }
 
-    // Geofence-IDs separat laden über /api/positionAttributes (wenn Filter aktiv ist)
+    // Geofence-IDs separat laden über Device-Attributes (wenn Filter aktiv ist)
     $geofenceCache = null;
     if (!empty($config['GEOFENCE_IDS'])) {
-        // Alle PositionIDs sammeln
-        $positionIds = [];
-        foreach ($allPositions as $pos) {
-            if (isset($pos['id'])) {
-                $positionIds[] = $pos['id'];
-            }
-        }
+        logDebug("Lade Device-Attribute für Geofence-Filter...");
+        $geofenceCache = [];
 
-        if (!empty($positionIds)) {
-            // PositionAttributes laden (nur geofenceIds)
-            $positionAttributesEndpoint = $traccarUrl . '/api/positionAttributes?positionIds=' . implode(',', $positionIds) . '&keys=geofenceIds';
+        // Device-Attribute für jedes Gerät laden
+        foreach ($devices as $device) {
+            $deviceId = $device['id'];
+            $deviceName = $device['name'] ?? 'Unknown';
+
+            // Device-Attribute laden
+            $deviceAttributesEndpoint = $traccarUrl . '/api/attributes/device/' . $deviceId;
             $ch = curl_init();
             curl_setopt_array($ch, [
-                CURLOPT_URL => $positionAttributesEndpoint,
+                CURLOPT_URL => $deviceAttributesEndpoint,
                 CURLOPT_HTTPHEADER => ['Accept: application/json'],
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_COOKIEFILE => $cookieFile,
@@ -400,22 +399,20 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             if ($attributesJson) {
                 $attributes = json_decode($attributesJson, true);
                 if (json_last_error() === JSON_ERROR_NONE && is_array($attributes)) {
-                    $geofenceCache = [];
+                    // Traccar gibt attributes als Liste von {key, value} zurück
                     foreach ($attributes as $attr) {
-                        if (isset($attr['positionId']) && isset($attr['attributes'])) {
-                            foreach ($attr['attributes'] as $posAttr) {
-                                if (isset($posAttr['key']) && $posAttr['key'] === 'geofenceIds') {
-                                    $geofenceCache[$attr['positionId']] = $posAttr['value'] ?? '';
-                                    break;
-                                }
-                            }
+                        if (isset($attr['key']) && $attr['key'] === 'geofenceIds') {
+                            $geofenceCache[$deviceId] = $attr['value'] ?? '';
+                            logDebug("Device {$deviceId} ({$deviceName}) - geofenceIds: [" . ($attr['value'] ?? 'empty') . "]");
+                            break;
                         }
                     }
-                    logDebug("Geofence-IDs geladen für " . count($geofenceCache) . " Positionen.");
                 }
             }
         }
+        logDebug("Geofence-IDs geladen für " . count($geofenceCache) . " Geräte.");
     }
+
 
     // Fahrzeuge verarbeiten und XML-Items generieren
     foreach ($devices as $device) {
