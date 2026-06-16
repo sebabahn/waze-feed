@@ -404,6 +404,9 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
 
         $deviceName = isset($device['name']) ? $device['name'] : 'Unknown Device';
 
+        // emstatus aus device attributes lesen (wenn vorhanden)
+        $emstatus = $device['attributes']['emstatus'] ?? null;
+
         // Zeitdifferenz berechnen: Wie lange her ist die Position an Traccar gesendet worden?
         $fixTime = strtotime($latestPos['fixTime']);
         $timeSinceFix = time() - $fixTime;
