@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traccar OsmAnd Testdaten Sender</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .log-line { font-family: ui-monospace, monospace; font-size: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-200">
+  <div class="max-w-3xl mx-auto p-6">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">Traccar OsmAnd Testdaten</h1>
+      <p class="text-zinc-400 mt-1">Einfacher Sender für lat/lon, altitude und emstatus (OsmAnd-Protokoll)</p>
+    </div>
+
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Server & Device -->
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Traccar Server URL</label>
+          <input id="server" type="text" value="http://localhost:5055"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+          <p class="text-[10px] text-zinc-500 mt-1">Beispiel: http://192.168.1.10:5055 oder https://traccar.example.com:5055</p>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Device ID (id)</label>
+          <input id="deviceId" type="text" value="test-device-001"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+        </div>
+
+        <!-- Position -->
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Latitude (lat)</label>
+          <input id="lat" type="number" step="0.0000001" value="52.520008" 
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Longitude (lon)</label>
+          <input id="lon" type="number" step="0.0000001" value="13.404954"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Altitude (m)</label>
+          <input id="altitude" type="number" step="0.1" value="45"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">emstatus</label>
+          <input id="emstatus" type="text" value="normal"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+          <p class="text-[10px] text-zinc-500 mt-1">Wird als Custom-Attribut übermittelt</p>
+        </div>
+
+        <!-- Optionals -->
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Geschwindigkeit (m/s)</label>
+          <input id="speed" type="number" step="0.1" value="0" placeholder="optional"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Richtung / Bearing (°)</label>
+          <input id="bearing" type="number" step="1" value="0" placeholder="optional"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-zinc-400 mb-1">Timestamp (Unix-Sekunden oder leer = jetzt)</label>
+          <div class="flex gap-2">
+            <input id="timestamp" type="text" placeholder="z.B. 1718726400 oder leer"
+                   class="flex-1 bg-zinc-950 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-500">
+            <button onclick="setNowTimestamp()"
+                    class="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-sm border border-zinc-700 transition">Jetzt</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mt-6">
+        <button onclick="sendData()"
+                class="px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition font-medium text-sm">
+          Daten senden (fetch)
+        </button>
+        <button onclick="openInTab()"
+                class="px-6 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 transition font-medium text-sm border border-zinc-700">
+          URL in neuem Tab öffnen
+        </button>
+        <button onclick="copyUrl()"
+                class="px-5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 transition text-sm border border-zinc-700">
+          URL kopieren
+        </button>
+        <button onclick="copyCurl()"
+                class="px-5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 transition text-sm border border-zinc-700">
+          cURL kopieren
+        </button>
+        <button onclick="randomPosition()"
+                class="px-5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 transition text-sm border border-zinc-700 ml-auto">
+          Zufällige Position (Berlin)
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick presets -->
+    <div class="mb-6">
+      <div class="text-sm text-zinc-400 mb-2">Schnell-Positionen</div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="setPreset(52.520008, 13.404954, 35, 'normal')" class="text-xs px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700">Berlin Mitte</button>
+        <button onclick="setPreset(52.455, 13.38, 42, 'normal')" class="text-xs px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700">Berlin Tempelhof</button>
+        <button onclick="setPreset(48.135125, 11.581981, 520, 'normal')" class="text-xs px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700">München</button>
+        <button onclick="setPreset(50.110924, 8.682127, 110, 'normal')" class="text-xs px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700">Frankfurt</button>
+        <button onclick="setPreset(53.551086, 9.993682, 10, 'normal')" class="text-xs px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700">Hamburg</button>
+        <button onclick="setPreset(52.520008, 13.404954, 35, 'alarm')" class="text-xs px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700">Berlin + emstatus=alarm</button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+      <div class="flex items-center justify-between mb-3">
+        <div class="text-sm font-medium text-zinc-400">Letzte Anfrage</div>
+        <button onclick="clearLog()" class="text-xs text-zinc-500 hover:text-zinc-400">Log leeren</button>
+      </div>
+
+      <div id="currentUrl" class="mono bg-black/40 border border-zinc-800 rounded-xl p-3 text-xs break-all text-emerald-400 min-h-[2.25rem]">
+        (Noch keine URL generiert)
+      </div>
+
+      <div class="mt-4">
+        <div class="text-xs text-zinc-500 mb-1">Log</div>
+        <div id="log" class="bg-black/60 border border-zinc-800 rounded-xl p-3 h-56 overflow-auto text-xs text-zinc-300 space-y-1"></div>
+      </div>
+    </div>
+
+    <div class="mt-6 text-[11px] text-zinc-500">
+      Hinweis: Direkte fetch-Anfragen können durch CORS blockiert werden. 
+      „URL in neuem Tab öffnen“ oder cURL funktionieren immer. 
+      Alle nicht-standard Parameter (wie emstatus) werden von Traccar als Custom-Attribute gespeichert.
+    </div>
+  </div>
+
+  <script>
+    function log(msg, isError = false) {
+      const logEl = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('de-DE');
+      const div = document.createElement('div');
+      div.className = 'log-line ' + (isError ? 'text-red-400' : 'text-zinc-400');
+      div.textContent = `[${time}] ${msg}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    function buildUrl() {
+      const server = document.getElementById('server').value.trim().replace(/\/$/, '');
+      const id = encodeURIComponent(document.getElementById('deviceId').value.trim());
+      const lat = document.getElementById('lat').value;
+      const lon = document.getElementById('lon').value;
+      const altitude = document.getElementById('altitude').value;
+      const emstatus = document.getElementById('emstatus').value;
+      const speed = document.getElementById('speed').value;
+      const bearing = document.getElementById('bearing').value;
+      const timestamp = document.getElementById('timestamp').value.trim();
+
+      if (!server || !id || !lat || !lon) {
+        alert('Server, Device ID, lat und lon sind erforderlich!');
+        return null;
+      }
+
+      const params = new URLSearchParams();
+      params.set('id', id);
+      params.set('lat', lat);
+      params.set('lon', lon);
+
+      if (altitude !== '') params.set('altitude', altitude);
+      if (emstatus !== '') params.set('emstatus', emstatus);
+      if (speed !== '') params.set('speed', speed);
+      if (bearing !== '') params.set('bearing', bearing);
+      if (timestamp !== '') params.set('timestamp', timestamp);
+
+      return `${server}/?${params.toString()}`;
+    }
+
+    function updateUrlDisplay(url) {
+      const el = document.getElementById('currentUrl');
+      if (url) {
+        el.textContent = url;
+        el.classList.remove('text-zinc-500');
+        el.classList.add('text-emerald-400');
+      } else {
+        el.textContent = '(Noch keine URL generiert)';
+      }
+    }
+
+    function setNowTimestamp() {
+      const now = Math.floor(Date.now() / 1000);
+      document.getElementById('timestamp').value = now;
+    }
+
+    async function sendData() {
+      const url = buildUrl();
+      if (!url) return;
+
+      updateUrlDisplay(url);
+      log('Sende GET: ' + url);
+
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          // no-cors erlaubt keine lesbare Antwort, aber der Request wird gesendet
+          mode: 'no-cors'
+        });
+        // Bei no-cors ist response.type === 'opaque'
+        log('Request abgesendet (no-cors). Traccar antwortet normalerweise mit 200 OK.');
+      } catch (err) {
+        log('Fetch-Fehler: ' + err.message, true);
+        log('Tipp: Verwende „URL in neuem Tab öffnen“ oder cURL, wenn CORS blockiert.', true);
+      }
+    }
+
+    function openInTab() {
+      const url = buildUrl();
+      if (!url) return;
+      updateUrlDisplay(url);
+      window.open(url, '_blank');
+      log('URL in neuem Tab geöffnet: ' + url);
+    }
+
+    function copyUrl() {
+      const url = buildUrl();
+      if (!url) return;
+      updateUrlDisplay(url);
+      navigator.clipboard.writeText(url).then(() => {
+        log('URL in Zwischenablage kopiert');
+      }).catch(() => {
+        prompt('URL kopieren:', url);
+      });
+    }
+
+    function copyCurl() {
+      const url = buildUrl();
+      if (!url) return;
+      updateUrlDisplay(url);
+      const curl = `curl -G "${url}"`;
+      navigator.clipboard.writeText(curl).then(() => {
+        log('cURL-Befehl kopiert');
+      }).catch(() => {
+        prompt('cURL-Befehl kopieren:', curl);
+      });
+    }
+
+    function setPreset(lat, lon, alt, em) {
+      document.getElementById('lat').value = lat;
+      document.getElementById('lon').value = lon;
+      document.getElementById('altitude').value = alt;
+      document.getElementById('emstatus').value = em;
+      log(`Preset gesetzt: lat=${lat}, lon=${lon}, altitude=${alt}, emstatus=${em}`);
+    }
+
+    function randomPosition() {
+      // Zufälliger Punkt um Berlin Mitte
+      const baseLat = 52.52;
+      const baseLon = 13.405;
+      const lat = (baseLat + (Math.random() - 0.5) * 0.04).toFixed(7);
+      const lon = (baseLon + (Math.random() - 0.5) * 0.06).toFixed(7);
+      const alt = Math.floor(Math.random() * 80 + 25);
+
+      document.getElementById('lat').value = lat;
+      document.getElementById('lon').value = lon;
+      document.getElementById('altitude').value = alt;
+
+      // gelegentlich emstatus ändern
+      if (Math.random() > 0.7) {
+        document.getElementById('emstatus').value = 'alarm';
+      } else {
+        document.getElementById('emstatus').value = 'normal';
+      }
+
+      log(`Zufällige Position: ${lat}, ${lon}, alt=${alt}`);
+    }
+
+    // Tastatur-Shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.metaKey && e.key === 'Enter') {
+        e.preventDefault();
+        sendData();
+      }
+      if (e.key.toLowerCase() === 'r' && document.activeElement.tagName === 'BODY') {
+        randomPosition();
+      }
+    });
+
+    // Init
+    function init() {
+      // Setze Timestamp leer (jetzt verwenden)
+      document.getElementById('timestamp').placeholder = 'leer = aktuelle Zeit';
+
+      // Zeige Beispiel-URL beim Laden
+      setTimeout(() => {
+        const url = buildUrl();
+        if (url) updateUrlDisplay(url);
+      }, 200);
+
+      log('Traccar OsmAnd Tester bereit. Klicke auf "Daten senden" oder öffne die URL.');
+    }
+
+    init();
+  </script>
+</body>
+</html>
