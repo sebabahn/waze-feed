@@ -419,24 +419,22 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
             }
         }
 
-        // geofenceIds Filter
+        // geofenceIds Filter - INVERTIERT: Nur Devices AUSSERHALB der konfigurierten Geofences anzeigen
         $deviceGeofenceIds = null;
         if (!empty($config['GEOFENCE_IDS'])) {
-            logDebug("GEOFENCE_IDS aktiviert: [" . implode(',', $config['GEOFENCE_IDS']) . "]");
+            logDebug("GEOFENCE_IDS aktiviert (OUTSIDE-Modus): [" . implode(',', $config['GEOFENCE_IDS']) . "]");
 
             if ($positionGeofenceIds !== null) {
                 $deviceGeofenceIds = $positionGeofenceIds;
                 $matches = array_intersect($config['GEOFENCE_IDS'], $deviceGeofenceIds);
-                if (empty($matches)) {
-                    logDebug("Device {$deviceId} - Geofence-Filter: FAIL (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], position: [" . implode(',', $deviceGeofenceIds) . "])");
-                    logDebug("Device {$deviceId} uebersprungen - nicht im konfigurierten Geofence.");
+                if (!empty($matches)) {
+                    logDebug("Device {$deviceId} - Geofence-Filter: IM Geofence (IDs: " . implode(',', $matches) . ") -> uebersprungen.");
                     continue;
                 } else {
-                    logDebug("Device {$deviceId} - Geofence-Filter: PASS (IDs: " . implode(',', $matches) . ")");
+                    logDebug("Device {$deviceId} - Geofence-Filter: AUSSERHALB (konfiguriert: [" . implode(',', $config['GEOFENCE_IDS']) . "], position: [" . implode(',', $deviceGeofenceIds) . "])");
                 }
             } else {
-                logDebug("Device {$deviceId} - Geofence-Filter: FAIL (keine geofenceIds in Position) - wird uebersprungen.");
-                continue;
+                logDebug("Device {$deviceId} - Keine geofenceIds in Position -> zeige trotzdem an (keine Geofence-Zuordnung).");
             }
         }
 

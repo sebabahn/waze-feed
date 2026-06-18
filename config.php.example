@@ -83,7 +83,7 @@ return [
     //                   Beispiel: [3, 4]
     'EMSTATUS_FILTER'   => [3,4,5],
 
-    // GEOFENCE_IDS:     Array mit Geofence-IDs. Nur Fahrzeuge innerhalb dieser Geofences
+    // GEOFENCE_IDS:     Array mit Geofence-IDs. Nur Fahrzeuge außerhalb dieser Geofences
     //                   werden berücksichtigt. Leeres Array = keine geografische Einschränkung.
     //                   Die IDs entsprechen den in Traccar angelegten Geofences.
     //                   Beispiel: [5, 12]
